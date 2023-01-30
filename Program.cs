@@ -16,6 +16,9 @@ namespace cPicker
 
         private void InitializeComponent()
         {
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+
             colorDialog = new ColorDialog
             {
                 FullOpen = true
