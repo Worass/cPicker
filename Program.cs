@@ -1,5 +1,7 @@
-using System;
+﻿using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace cPicker
@@ -7,91 +9,120 @@ namespace cPicker
     public class colorPicker : Form
     {
         private ColorDialog colorDialog;
-        private Button button;
+        private TextBox hexTextBox;
         private Label label;
-        private FlowLayoutPanel colorPalette;
+        private PictureBox colorCircle;
 
         public colorPicker()
         {
             InitializeComponent();
+
+            // Play beeping sound when opening app for the first time. //
+            Console.Beep(440, 500);
         }
 
         private void InitializeComponent()
         {
-            FormBorderStyle = FormBorderStyle.FixedSingle;
+            FormBorderStyle = FormBorderStyle.Sizable;
             MaximizeBox = false;
 
             colorDialog = new ColorDialog
             {
                 FullOpen = true
             };
-            button = new Button
+            hexTextBox = new TextBox
             {
-                Text = "Choose Color"
+                Text = "#000000",
+                Width = 100
             };
-            button.Click += new EventHandler(Button_Click);
+            hexTextBox.TextChanged += new EventHandler(HexTextBox_TextChanged);
 
             label = new Label
             {
                 Text = "No color selected",
                 AutoSize = true,
-                Left = button.Right + 10,
-                Top = button.Top
+                Left = hexTextBox.Right + 10,
+                Top = hexTextBox.Top
             };
 
-            colorPalette = new FlowLayoutPanel
+            colorCircle = new PictureBox
             {
                 Width = 200,
-                Height = 50,
+                Height = 200,
                 Left = 10,
-                Top = button.Bottom + 10
+                Top = hexTextBox.Bottom + 10
             };
-            AddColorsToPalette();
+            colorCircle.Paint += new PaintEventHandler(ColorCircle_Paint);
 
-            Controls.Add(button);
+            Controls.Add(hexTextBox);
             Controls.Add(label);
-            Controls.Add(colorPalette);
+            Controls.Add(colorCircle);
         }
 
-        private void AddColorsToPalette()
-        {
-            Color[] colors = new Color[] {
-                Color.Red, Color.Orange, Color.Yellow,
-                Color.Green, Color.Blue, Color.Indigo,
-                Color.Violet, Color.Pink, Color.Brown,
-                Color.Black
-            };
+        private void ColorCircle_Paint(object sender, PaintEventArgs e)
+{
+    Rectangle rect = new Rectangle(0, 0, colorCircle.Width, colorCircle.Height);
 
-            foreach (Color color in colors)
+    // Create a linear gradient brush with four gradient stops
+    LinearGradientBrush brush = new LinearGradientBrush(rect, Color.Red, Color.Green, 0f);
+    brush.InterpolationColors = new ColorBlend
+    {
+        Colors = new Color[] { Color.Red, Color.Yellow, Color.Lime, Color.Green },
+        Positions = new float[] { 0f, 0.33f, 0.67f, 1f }
+    };
+
+    // Draw a circle with a gradient fill
+    using (GraphicsPath path = new GraphicsPath())
+    {
+        path.AddEllipse(rect);
+        using (PathGradientBrush fillBrush = new PathGradientBrush(path))
+        {
+            fillBrush.CenterPoint = new PointF(rect.Width / 2f, rect.Height / 2f);
+            fillBrush.CenterColor = Color.White;
+            fillBrush.SurroundColors = new Color[] { colorDialog.Color };
+            e.Graphics.FillEllipse(fillBrush, rect);
+        }
+    }
+
+    // Draw a white border
+    using (Pen borderPen = new Pen(Color.White))
+    {
+        e.Graphics.DrawEllipse(borderPen, rect);
+    }
+}
+
+
+        private void HexTextBox_TextChanged(object sender, EventArgs e)
+        {
+            string hex = hexTextBox.Text.Replace("#", "").Trim();
+
+            // Limit input to 6 characters
+            if (hex.Length > 6)
             {
-                Button colorButton = new Button
-                {
-                    BackColor = color,
-                    Width = 40,
-                    Height = 40,
-                    Margin = new Padding(10)
-                };
-                colorButton.Click += new EventHandler((sender, e) => ColorButton_Click(sender, e, color));
-                colorPalette.Controls.Add(colorButton);
+                hex = hex.Substring(0, 6);
+                hexTextBox.Text = "#" + hex;
+                hexTextBox.SelectionStart = 7;
+            }
+
+            // Remove any non-numeric characters from the input
+            hex = new string(hex.Where(c => char.IsDigit(c)).ToArray());
+
+            if (hex.Length == 6)
+            {
+                Color color = Color.FromArgb(
+                    int.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber),
+                    int.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber),
+                    int.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber)
+                );
+                colorDialog.Color = color;
+                colorCircle.Invalidate();
+                BackColor = color;
+                label.Text = color.Name + " (RGB: " + color.R + ", " + color.G + ", " + color.B + ") (HEX: #" + hex.ToUpper() + ")";
+
             }
         }
 
-        private void ColorButton_Click(object sender, EventArgs e, Color color)
-        {
-            BackColor = color;
-            label.Text = color.Name;
-            label.Text = color.Name + " (RGB: " + color.R + ", " + color.G + ", " + color.B + ") (HEX: #" + color.R.ToString("X2") + color.G.ToString("X2") + color.B.ToString("X2") + ")";
-        }
 
-        private void Button_Click(object sender, EventArgs e)
-        {
-            if (colorDialog.ShowDialog() == DialogResult.OK)
-            {
-                BackColor = colorDialog.Color;
-                label.Text = colorDialog.Color.Name;
-                label.Text = colorDialog.Color.Name + " (RGB: " + colorDialog.Color.R + ", " + colorDialog.Color.G + ", " + colorDialog.Color.B + ") (HEX: #" + colorDialog.Color.R.ToString("X2") + colorDialog.Color.G.ToString("X2") + colorDialog.Color.B.ToString("X2") + ")";
-            }
-        }
 
         [STAThread]
         static void Main()
